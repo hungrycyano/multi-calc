@@ -1,0 +1,655 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>マルチ電卓</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="マルチ電卓">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#EDF1EE" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0E1512" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="icon-180.png">
+<style>
+:root{color-scheme:light;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);-webkit-text-size-adjust:100%}
+body{margin:0}
+img{max-width:100%}
+[hidden]{display:none!important}
+</style>
+</head>
+<body>
+<style>
+/* Layout: one column built for one thumb. Result panel first (like a calculator screen), inputs below, tab bar fixed at the bottom. */
+:root {
+  --bg: #EDF1EE;
+  --surface: #FAFBFA;
+  --field: #FFFFFF;
+  --ink: #12261F;
+  --muted: #5A6A63;
+  --line: #C9D5CE;
+  --accent: #2F4FD8;
+  --accent-ink: #FFFFFF;
+  --accent-soft: #DFE5FB;
+  --accent-soft-ink: #1B2F8F;
+  --warn: #B3261E;
+  --rest: #8C9B94;
+  --font-body: "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Yu Gothic", "Noto Sans JP", sans-serif;
+  --font-num: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0E1512; --surface: #16201B; --field: #0F1814; --ink: #E6EEE9; --muted: #93A39B;
+    --line: #2A3731; --accent: #8DA2FF; --accent-ink: #0E1512; --accent-soft: #1F2850;
+    --accent-soft-ink: #C9D3FF; --warn: #FF8A80; --rest: #70807A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0E1512; --surface: #16201B; --field: #0F1814; --ink: #E6EEE9; --muted: #93A39B;
+  --line: #2A3731; --accent: #8DA2FF; --accent-ink: #0E1512; --accent-soft: #1F2850;
+  --accent-soft-ink: #C9D3FF; --warn: #FF8A80; --rest: #70807A;
+  color-scheme: dark;
+}
+
+* { box-sizing: border-box; }
+body {
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.6;
+  padding-inline: 16px;
+  padding-block: 20px 104px;
+}
+.wrap { max-width: 520px; margin-inline: auto; display: grid; gap: 28px; }
+header { display: grid; gap: 2px; }
+.eyebrow { margin: 0; font-size: 12px; letter-spacing: .14em; color: var(--muted); font-weight: 500; }
+h1 { margin: 0; font-size: 30px; line-height: 1.2; font-weight: 700; text-wrap: balance; }
+h2 { margin: 0; font-size: 18px; font-weight: 700; text-wrap: balance; }
+.hint { margin: 0; font-size: 13px; color: var(--muted); }
+
+section.calc { display: grid; gap: 12px; min-width: 0; }
+[hidden] { display: none !important; }
+
+/* Result panel */
+.panel {
+  background: var(--accent-soft);
+  color: var(--accent-soft-ink);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 10px;
+  min-width: 0;
+}
+.panel .lab { font-size: 13px; font-weight: 500; letter-spacing: .04em; }
+.panel .big {
+  font-family: var(--font-num);
+  font-weight: 500;
+  font-size: clamp(30px, 9.5vw, 42px);
+  line-height: 1.15;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+.panel .big small { font-family: var(--font-body); font-size: 16px; font-weight: 500; margin-left: 4px; }
+.panel .big.mid { font-size: clamp(22px, 6.4vw, 28px); }
+dl.rows { margin: 0; display: grid; }
+dl.rows > div {
+  display: flex; justify-content: space-between; align-items: baseline; gap: 12px;
+  padding-block: 7px; border-top: 1px dashed color-mix(in srgb, var(--accent-soft-ink) 35%, transparent);
+  font-size: 15px;
+}
+dl.rows dt { margin: 0; min-width: 0; }
+dl.rows dd { margin: 0; font-family: var(--font-num); font-variant-numeric: tabular-nums; text-align: right; font-weight: 500; }
+.panel .err { color: var(--warn); font-weight: 700; font-size: 15px; margin: 0; }
+
+/* Inputs */
+.card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+.row2 { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.field { display: grid; gap: 6px; min-width: 0; }
+.field > label, .field > .lbl { font-size: 13px; font-weight: 500; color: var(--muted); }
+.inp {
+  display: flex; align-items: center; gap: 6px;
+  background: var(--field);
+  border: 1.5px solid var(--line);
+  border-radius: 10px;
+  padding-inline: 12px;
+  min-height: 52px;
+  min-width: 0;
+}
+.inp:focus-within { border-color: var(--accent); outline: 2px solid color-mix(in srgb, var(--accent) 30%, transparent); outline-offset: 1px; }
+.inp input {
+  flex: 1; min-width: 0; width: 100%;
+  border: 0; background: transparent; color: var(--ink);
+  font-family: var(--font-num); font-size: 22px; font-weight: 500;
+  padding-block: 8px; outline: none; font-variant-numeric: tabular-nums;
+}
+.inp .unit { color: var(--muted); font-size: 15px; white-space: nowrap; }
+input[type="date"] { font-family: var(--font-num); font-size: 18px; }
+
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip {
+  font: inherit; font-size: 16px; font-weight: 500;
+  min-height: 44px; min-width: 44px; padding-inline: 14px;
+  border-radius: 10px; cursor: pointer;
+  border: 1.5px solid var(--line); background: var(--field); color: var(--ink);
+}
+.chip[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: var(--accent-ink); }
+.chip.removable { display: inline-flex; align-items: center; gap: 8px; font-family: var(--font-num); font-size: 14px; }
+.chip.removable span { font-family: var(--font-body); font-size: 18px; line-height: 1; }
+.wdchips { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 6px; }
+.wdchips .chip { padding-inline: 0; min-width: 0; }
+
+.addrow { display: flex; gap: 8px; align-items: stretch; }
+.addrow .inp { flex: 1; }
+.btn {
+  font: inherit; font-weight: 700; min-height: 52px; padding-inline: 18px;
+  border-radius: 10px; border: 0; cursor: pointer;
+  background: var(--accent); color: var(--accent-ink);
+}
+details summary { cursor: pointer; font-size: 14px; color: var(--muted); min-height: 32px; display: flex; align-items: center; }
+details[open] summary { margin-bottom: 8px; }
+.note { margin: 0; font-size: 13px; color: var(--muted); }
+
+/* Calendar */
+.cal { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
+.month { min-width: 0; }
+.month h4 { margin: 0 0 6px; font-size: 14px; font-weight: 700; }
+.wd, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 3px; }
+.wd span { text-align: center; font-size: 11px; color: var(--muted); }
+.c {
+  aspect-ratio: 1; display: grid; place-items: center; max-width: 100%;
+  font-family: var(--font-num); font-size: 13px; font-weight: 500; border-radius: 8px;
+}
+.c.pad { visibility: hidden; }
+.c.out { color: var(--rest); opacity: .5; }
+.c.read { background: var(--accent); color: var(--accent-ink); }
+.c.rest { color: var(--muted); border: 1.5px dashed var(--rest); }
+.c.first { outline: 2px solid var(--ink); outline-offset: 1px; }
+.c.last { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); font-weight: 700; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 13px; color: var(--muted); }
+.legend i { display: inline-block; width: 14px; height: 14px; border-radius: 4px; vertical-align: -2px; margin-right: 6px; }
+.legend .l-read { background: var(--accent); }
+.legend .l-rest { border: 1.5px dashed var(--rest); }
+.legend .l-first { outline: 2px solid var(--ink); outline-offset: 1px; }
+.legend .l-last { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--accent); }
+
+/* Tab bar */
+.tabs {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
+  background: var(--surface); border-top: 1px solid var(--line);
+}
+.tabs button {
+  font: inherit; font-size: 17px; font-weight: 700; min-height: 52px;
+  border-radius: 12px; border: 1.5px solid transparent; background: transparent; color: var(--muted); cursor: pointer;
+}
+.tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-soft-ink); border-color: var(--accent); }
+
+button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); outline-offset: 2px; }
+@media (prefers-reduced-motion: no-preference) {
+  .chip, .tabs button, .btn { transition: background-color .12s, color .12s, border-color .12s; }
+}
+</style>
+
+<div class="wrap">
+  <header>
+    <p class="eyebrow">マルチ電卓</p>
+    <h1 id="ttl">利率</h1>
+    <p class="hint" id="sample">入力欄には例の数字が入っています。書き換えて使えます。</p>
+  </header>
+
+  <!-- ============ 利率 ============ -->
+  <div id="pane-rate" role="tabpanel" aria-labelledby="tab-rate" style="display:grid;gap:36px">
+    <section class="calc" aria-live="polite">
+      <h2>預金の利息（税金を引いた額）</h2>
+      <div class="panel">
+        <div class="lab">税引後の利息</div>
+        <div class="big" id="o-net">—</div>
+        <dl class="rows">
+          <div><dt>税引前の利息</dt><dd id="o-gross">—</dd></div>
+          <div><dt>税金</dt><dd id="o-tax">—</dd></div>
+          <div><dt>元金＋税引後の利息</dt><dd id="o-total">—</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <div class="field"><label for="p">元金</label>
+          <div class="inp"><input id="p" type="text" inputmode="decimal" autocomplete="off"><span class="unit">円</span></div></div>
+        <div class="row2">
+          <div class="field"><label for="r">年利</label>
+            <div class="inp"><input id="r" type="text" inputmode="decimal" autocomplete="off"><span class="unit">％</span></div></div>
+          <div class="field"><label for="m">預ける期間</label>
+            <div class="inp"><input id="m" type="text" inputmode="decimal" autocomplete="off"><span class="unit">か月</span></div></div>
+        </div>
+        <details>
+          <summary>税率を変える</summary>
+          <div class="field"><label for="tax">利息にかかる税率</label>
+            <div class="inp"><input id="tax" type="text" inputmode="decimal" autocomplete="off"><span class="unit">％</span></div></div>
+        </details>
+        <p class="note">税率の初期値は20.315％（所得税と復興特別所得税15.315％、住民税5％）。利息と税金の端数は切り捨てです。</p>
+      </div>
+    </section>
+
+    <section class="calc" aria-live="polite">
+      <h2>広告の利率を換算する</h2>
+      <div class="panel">
+        <div class="lab" id="l-gain">期間で得られる金額（税引後）</div>
+        <div class="big" id="o-pnet">—</div>
+        <dl class="rows">
+          <div><dt>税引前の利息</dt><dd id="o-pgross">—</dd></div>
+          <div><dt>税金</dt><dd id="o-ptax">—</dd></div>
+          <div><dt>元金＋税引後の利息</dt><dd id="o-ptotal">—</dd></div>
+        </dl>
+        <div class="lab">利率の換算</div>
+        <dl class="rows">
+          <div><dt id="l-period">期間の利率</dt><dd id="o-period">—</dd></div>
+          <div><dt>年利（単利）</dt><dd id="o-simple">—</dd></div>
+          <div><dt>税引後の年利（単利）</dt><dd id="o-aftertax">—</dd></div>
+          <div><dt>複利で年利に直すと</dt><dd id="o-comp">—</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <div class="field"><span class="lbl" id="mode-lbl">入力する利率の種類</span>
+          <div class="chips" id="modes" role="group" aria-labelledby="mode-lbl">
+            <button type="button" class="chip" data-mode="annual" aria-pressed="true">年利</button>
+            <button type="button" class="chip" data-mode="period" aria-pressed="false">期間の利率</button>
+          </div></div>
+        <div class="field"><label for="ap">元金</label>
+          <div class="inp"><input id="ap" type="text" inputmode="decimal" autocomplete="off"><span class="unit">円</span></div></div>
+        <div class="row2">
+          <div class="field"><label for="am">運用する期間</label>
+            <div class="inp"><input id="am" type="text" inputmode="decimal" autocomplete="off"><span class="unit">か月</span></div></div>
+          <div class="field"><label for="ar" id="l-rate">年利</label>
+            <div class="inp"><input id="ar" type="text" inputmode="decimal" autocomplete="off"><span class="unit">％</span></div></div>
+        </div>
+        <p class="note">「年利」は1年あたりの利率で、金額は 元金×年利×期間÷12か月 で計算します。「期間の利率」は「3か月で0.8％」のような広告の利率で、金額は 元金×その利率 です。どちらも端数は切り捨てです。単利は利率を12か月分に引き延ばした値、複利は同じ利率が期間ごとに元利合計へつく場合の値です。</p>
+      </div>
+    </section>
+  </div>
+
+  <!-- ============ 読書日数 ============ -->
+  <div id="pane-read" role="tabpanel" aria-labelledby="tab-read" hidden style="gap:20px">
+    <section class="calc" aria-live="polite" style="display:grid">
+      <div class="panel" id="read-panel">
+        <div class="lab">読み終わる日</div>
+        <div class="big mid" id="o-end">—</div>
+        <dl class="rows">
+          <div><dt>読む日数</dt><dd id="o-days">—</dd></div>
+          <div><dt>休みを入れた期間</dt><dd id="o-span">—</dd></div>
+          <div><dt>最終日に読む量</dt><dd id="o-last">—</dd></div>
+        </dl>
+      </div>
+
+      <div class="card">
+        <div class="field"><span class="lbl" id="unit-lbl">数える単位</span>
+          <div class="chips" role="group" aria-labelledby="unit-lbl" id="units">
+            <button type="button" class="chip" data-unit="ページ" aria-pressed="true">ページ</button>
+            <button type="button" class="chip" data-unit="文字" aria-pressed="false">文字</button>
+            <button type="button" class="chip" data-unit="項目" aria-pressed="false">項目</button>
+          </div></div>
+        <div class="row2">
+          <div class="field"><label for="total">全部で</label>
+            <div class="inp"><input id="total" type="text" inputmode="decimal" autocomplete="off"><span class="unit u-txt">ページ</span></div></div>
+          <div class="field"><label for="per">1日に</label>
+            <div class="inp"><input id="per" type="text" inputmode="decimal" autocomplete="off"><span class="unit u-txt">ページ</span></div></div>
+        </div>
+        <div class="field"><label for="start">始める日</label>
+          <div class="inp"><input id="start" type="date"></div></div>
+
+        <div class="field"><span class="lbl" id="wd-lbl">毎週休む曜日</span>
+          <div class="wdchips" id="wds" role="group" aria-labelledby="wd-lbl"></div></div>
+
+        <div class="field"><span class="lbl">祝日</span>
+          <div class="chips"><button type="button" class="chip" id="hol" aria-pressed="false">祝日も休む</button></div></div>
+
+        <div class="field"><label for="addDate">そのほか休む日</label>
+          <div class="addrow">
+            <div class="inp"><input id="addDate" type="date"></div>
+            <button type="button" class="btn" id="addBtn">追加</button>
+          </div>
+          <div class="chips" id="restList" style="margin-top:4px"></div></div>
+      </div>
+    </section>
+
+    <section class="calc" id="cal-sec">
+      <h2>カレンダー</h2>
+      <div class="legend">
+        <span><i class="l-read"></i>読む日</span>
+        <span><i class="l-rest"></i>休み</span>
+        <span><i class="l-first"></i>始める日</span>
+        <span><i class="l-last"></i>読み終わる日</span>
+      </div>
+      <div id="cal" class="cal"></div>
+    </section>
+  </div>
+</div>
+
+<nav class="tabs" role="tablist" aria-label="電卓の切り替え">
+  <button type="button" role="tab" id="tab-rate" aria-selected="true" aria-controls="pane-rate">利率</button>
+  <button type="button" role="tab" id="tab-read" aria-selected="false" aria-controls="pane-read">読書日数</button>
+</nav>
+
+<script>
+/*CORE*/
+function parseNum(s) {
+  s = String(s == null ? "" : s)
+    .replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/[．。]/g, ".")
+    .replace(/[，,\s]/g, "");
+  if (s === "" || !/^-?\d*\.?\d+$|^-?\d+\.$/.test(s)) return NaN;
+  return parseFloat(s);
+}
+function toHalf(s) {
+  return String(s == null ? "" : s)
+    .replace(/[０-９]/g, function (c) { return String.fromCharCode(c.charCodeAt(0) - 0xFEE0); })
+    .replace(/[．。]/g, ".");
+}
+function formatMoney(s) {
+  var clean = toHalf(s).replace(/[^0-9.]/g, "");
+  var parts = clean.split(".");
+  var intp = parts[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return parts.length > 1 ? intp + "." + parts.slice(1).join("") : intp;
+}
+function interestAfterTax(principal, annualPct, months, taxPct) {
+  var gross = Math.floor(principal * annualPct / 100 * months / 12 + 1e-7);
+  var tax = Math.floor(gross * taxPct / 100 + 1e-7);
+  return { gross: gross, tax: tax, net: gross - tax, total: principal + gross - tax };
+}
+function annualize(pct, months) {
+  return {
+    simple: pct * 12 / months,
+    compound: (Math.pow(1 + pct / 100, 12 / months) - 1) * 100
+  };
+}
+function ymd(d) { return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
+var _holCache = {};
+function holidaysOf(y) {
+  if (_holCache[y]) return _holCache[y];
+  var m = {};
+  function add(mo, d) { m[y * 10000 + mo * 100 + d] = 1; }
+  function nth(mo, n, dow) { var f = new Date(y, mo - 1, 1).getDay(); return 1 + ((dow - f + 7) % 7) + (n - 1) * 7; }
+  var base = 0.242194 * (y - 1980) - Math.floor((y - 1980) / 4);
+  add(1, 1); add(1, nth(1, 2, 1)); add(2, 11); add(2, 23);
+  add(3, Math.floor(20.8431 + base)); add(4, 29); add(5, 3); add(5, 4); add(5, 5);
+  add(7, nth(7, 3, 1)); add(8, 11); add(9, nth(9, 3, 1)); add(9, Math.floor(23.2488 + base));
+  add(10, nth(10, 2, 1)); add(11, 3); add(11, 23);
+  // 振替休日: 日曜の祝日は、次の祝日でない日が休み
+  Object.keys(m).map(Number).sort().forEach(function (k) {
+    var d = new Date(Math.floor(k / 10000), Math.floor(k / 100) % 100 - 1, k % 100);
+    if (d.getDay() === 0) {
+      var n = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+      while (m[ymd(n)]) n = new Date(n.getFullYear(), n.getMonth(), n.getDate() + 1);
+      m[ymd(n)] = 1;
+    }
+  });
+  // 国民の休日: 祝日にはさまれた平日
+  for (var t = new Date(y, 0, 2); t.getFullYear() === y; t = new Date(y, t.getMonth(), t.getDate() + 1)) {
+    var p = new Date(y, t.getMonth(), t.getDate() - 1), q = new Date(y, t.getMonth(), t.getDate() + 1);
+    if (!m[ymd(t)] && t.getDay() !== 0 && m[ymd(p)] && m[ymd(q)]) m[ymd(t)] = 1;
+  }
+  _holCache[y] = m;
+  return m;
+}
+function isHoliday(d) { return !!holidaysOf(d.getFullYear())[ymd(d)]; }
+function planReading(o) {
+  var readDays = Math.ceil(o.total / o.per - 1e-9);
+  var restWd = o.restWeekdays;
+  if (restWd.length >= 7) return { error: "すべての曜日が休みになっています。" };
+  var days = [], read = 0, guard = 0;
+  var d = new Date(o.start.getFullYear(), o.start.getMonth(), o.start.getDate());
+  while (read < readDays && guard++ < 4000) {
+    var rest = restWd.indexOf(d.getDay()) >= 0 || !!o.restDates[ymd(d)] || (o.holidays && isHoliday(d));
+    days.push({ date: new Date(d), rest: rest });
+    if (!rest) read++;
+    d = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 1);
+  }
+  if (read < readDays) return { error: "4000日以内に読み終わりません。休みを減らしてください。" };
+  return {
+    readDays: readDays,
+    days: days,
+    restCount: days.filter(function (x) { return x.rest; }).length,
+    lastAmount: o.total - o.per * (readDays - 1)
+  };
+}
+var WD = "日月火水木金土";
+function fmtDate(d) { return d.getFullYear() + "年" + (d.getMonth() + 1) + "月" + d.getDate() + "日（" + WD[d.getDay()] + "）"; }
+function fmtDateShort(d) { return (d.getMonth() + 1) + "月" + d.getDate() + "日（" + WD[d.getDay()] + "）"; }
+function pad2(n) { return (n < 10 ? "0" : "") + n; }
+function dateToValue(d) { return d.getFullYear() + "-" + pad2(d.getMonth() + 1) + "-" + pad2(d.getDate()); }
+function valueToDate(v) {
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(v || "");
+  return m ? new Date(+m[1], +m[2] - 1, +m[3]) : null;
+}
+/*END CORE*/
+
+(function () {
+  var $ = function (id) { return document.getElementById(id); };
+  var KEY = "multicalc.v1";
+  function load() { try { return JSON.parse(localStorage.getItem(KEY)); } catch (e) { return null; } }
+  function save() { try { localStorage.setItem(KEY, JSON.stringify(S)); } catch (e) {} }
+
+  var today = new Date();
+  var saved = load();
+  var S = Object.assign({
+    tab: "rate", p: "1,000,000", r: "0.5", m: "12", tax: "20.315",
+    ap: "1,000,000", am: "3", ar: "0.8", mode: "annual",
+    unit: "ページ", total: "300", per: "12", start: dateToValue(today),
+    wd: [0, 6], hol: false, restDates: []
+  }, saved || {});
+  if (saved) $("sample").hidden = true;
+
+  function yen(n) { return Math.round(n).toLocaleString("ja-JP") + "円"; }
+  function pct(x) { return parseFloat(x.toFixed(3)).toString() + "％"; }
+  function num(n) { return Math.round(n * 100) / 100; }
+
+  /* ---- 預金の利息 ---- */
+  function calcDeposit() {
+    var p = parseNum($("p").value), r = parseNum($("r").value), m = parseNum($("m").value), t = parseNum($("tax").value);
+    var ok = p >= 0 && r >= 0 && m > 0 && t >= 0 && t < 100;
+    if (!ok) { ["o-net", "o-gross", "o-tax", "o-total"].forEach(function (i) { $(i).textContent = "—"; }); return; }
+    var x = interestAfterTax(p, r, m, t);
+    $("o-net").textContent = yen(x.net);
+    $("o-gross").textContent = yen(x.gross);
+    $("o-tax").textContent = "−" + yen(x.tax);
+    $("o-total").textContent = yen(x.total);
+  }
+
+  /* ---- 広告の利率 ---- */
+  function setMode(md) {
+    S.mode = md === "period" ? "period" : "annual";
+    document.querySelectorAll("#modes .chip").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.mode === S.mode)); });
+  }
+  function calcAd() {
+    var p = parseNum($("ap").value), m = parseNum($("am").value), r = parseNum($("ar").value), t = parseNum($("tax").value);
+    var taxPct = t >= 0 && t < 100 ? t : 20.315;
+    var annual = S.mode !== "period";
+    var mt = m > 0 ? parseFloat(m.toFixed(2)) + "か月" : "期間";
+    $("l-gain").textContent = mt + "で得られる金額（税引後）";
+    $("l-period").textContent = mt + "分の利率";
+    $("l-rate").textContent = annual ? "年利" : mt + "の利率";
+    var ids = ["o-period", "o-simple", "o-aftertax", "o-comp", "o-pnet", "o-pgross", "o-ptax", "o-ptotal"];
+    if (!(m > 0 && r >= 0)) { ids.forEach(function (i) { $(i).textContent = "—"; }); return; }
+    var periodPct = annual ? r * m / 12 : r;
+    var simple = annual ? r : annualize(r, m).simple;
+    $("o-period").textContent = pct(periodPct);
+    $("o-simple").textContent = pct(simple);
+    $("o-aftertax").textContent = pct(simple * (1 - taxPct / 100));
+    $("o-comp").textContent = pct(annualize(periodPct, m).compound);
+    if (p >= 0) {
+      /* 年利: 元金×年利×月数÷12。期間の利率: 元金×その利率 */
+      var g = annual ? interestAfterTax(p, r, m, taxPct) : interestAfterTax(p, r, 12, taxPct);
+      $("o-pnet").textContent = yen(g.net);
+      $("o-pgross").textContent = yen(g.gross);
+      $("o-ptax").textContent = "−" + yen(g.tax);
+      $("o-ptotal").textContent = yen(g.total);
+    } else {
+      ["o-pnet", "o-pgross", "o-ptax", "o-ptotal"].forEach(function (i) { $(i).textContent = "—"; });
+    }
+  }
+
+  /* ---- 読書日数 ---- */
+  function setUnit(u) {
+    S.unit = u;
+    document.querySelectorAll("#units .chip").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.unit === u)); });
+    document.querySelectorAll(".u-txt").forEach(function (e) { e.textContent = u; });
+  }
+  function readClear(msg) {
+    $("o-end").textContent = "—"; $("o-days").textContent = "—"; $("o-span").textContent = "—"; $("o-last").textContent = "—";
+    $("cal").innerHTML = ""; $("cal-sec").hidden = true;
+    var old = $("read-panel").querySelector(".err"); if (old) old.remove();
+    if (msg) { var p = document.createElement("p"); p.className = "err"; p.textContent = msg; $("read-panel").appendChild(p); }
+  }
+  function calcRead() {
+    var total = parseNum($("total").value), per = parseNum($("per").value), start = valueToDate($("start").value);
+    if (!(total > 0 && per > 0 && start)) { readClear("全体量・1日の量・始める日を入れてください。"); return; }
+    var rd = {};
+    S.restDates.forEach(function (v) { var d = valueToDate(v); if (d) rd[ymd(d)] = 1; });
+    var plan = planReading({ total: total, per: per, start: start, restWeekdays: S.wd, restDates: rd, holidays: S.hol });
+    if (plan.error) { readClear(plan.error); return; }
+    readClear(null);
+    var u = S.unit, first = plan.days[0].date, last = plan.days[plan.days.length - 1].date;
+    $("o-end").textContent = fmtDate(last);
+    $("o-days").textContent = plan.readDays + "日";
+    $("o-span").textContent = plan.days.length + "日間（休み" + plan.restCount + "日）";
+    $("o-last").textContent = num(plan.lastAmount) + u;
+    drawCal(plan, first, last);
+  }
+  function drawCal(plan, first, last) {
+    var sec = $("cal-sec"), el = $("cal");
+    var months = (last.getFullYear() - first.getFullYear()) * 12 + last.getMonth() - first.getMonth() + 1;
+    sec.hidden = false;
+    if (months > 18) { el.innerHTML = '<p class="note">期間が長いので、カレンダーは省略しました。</p>'; return; }
+    var map = {};
+    plan.days.forEach(function (x) { map[ymd(x.date)] = x; });
+    var fk = ymd(first), lk = ymd(last), html = "";
+    var head = WD.split("").map(function (c) { return "<span>" + c + "</span>"; }).join("");
+    for (var i = 0; i < months; i++) {
+      var b = new Date(first.getFullYear(), first.getMonth() + i, 1);
+      var y = b.getFullYear(), mo = b.getMonth();
+      var dim = new Date(y, mo + 1, 0).getDate(), cells = "";
+      for (var k = 0; k < b.getDay(); k++) cells += '<span class="c pad"></span>';
+      for (var d = 1; d <= dim; d++) {
+        var key = y * 10000 + (mo + 1) * 100 + d, info = map[key], cls = "c";
+        cls += info ? (info.rest ? " rest" : " read") : " out";
+        if (key === fk) cls += " first";
+        if (key === lk) cls += " last";
+        cells += '<span class="' + cls + '">' + d + "</span>";
+      }
+      html += '<div class="month"><h4>' + y + "年" + (mo + 1) + '月</h4><div class="wd">' + head + '</div><div class="grid">' + cells + "</div></div>";
+    }
+    el.innerHTML = html;
+  }
+
+  function renderRestList() {
+    var box = $("restList");
+    box.innerHTML = "";
+    S.restDates.slice().sort().forEach(function (v) {
+      var d = valueToDate(v); if (!d) return;
+      var b = document.createElement("button");
+      b.type = "button"; b.className = "chip removable"; b.setAttribute("aria-label", fmtDateShort(d) + "を休みから外す");
+      b.innerHTML = fmtDateShort(d) + " <span aria-hidden=\"true\">×</span>";
+      b.addEventListener("click", function () {
+        S.restDates = S.restDates.filter(function (x) { return x !== v; });
+        save(); renderRestList(); calcRead();
+      });
+      box.appendChild(b);
+    });
+  }
+
+  /* ---- 配線 ---- */
+  var textIds = ["p", "r", "m", "tax", "ap", "am", "ar", "total", "per"];
+  var moneyIds = { p: 1, ap: 1 };
+  function fmtMoneyField(el) {
+    var raw = el.value, pos = el.selectionStart == null ? raw.length : el.selectionStart;
+    var before = toHalf(raw.slice(0, pos)).replace(/[^0-9.]/g, "").length;
+    var out = formatMoney(raw);
+    el.value = out;
+    var n = 0, i = 0;
+    while (i < out.length && n < before) { if (out.charAt(i) !== ",") n++; i++; }
+    try { el.setSelectionRange(i, i); } catch (e) {}
+  }
+  textIds.forEach(function (id) {
+    $(id).value = moneyIds[id] ? formatMoney(S[id]) : S[id];
+    $(id).addEventListener("input", function (ev) {
+      if (moneyIds[id] && !ev.isComposing) fmtMoneyField($(id));
+      S[id] = $(id).value; $("sample").hidden = true; save();
+      if (id === "p" || id === "r" || id === "m") calcDeposit();
+      else if (id === "ap" || id === "am" || id === "ar") calcAd();
+      else if (id === "tax") { calcDeposit(); calcAd(); }
+      else calcRead();
+    });
+  });
+  $("start").value = S.start;
+  $("start").addEventListener("input", function () { S.start = $("start").value; $("sample").hidden = true; save(); calcRead(); });
+
+  var wds = $("wds");
+  WD.split("").forEach(function (c, i) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "chip"; b.textContent = c;
+    b.setAttribute("aria-pressed", String(S.wd.indexOf(i) >= 0));
+    b.addEventListener("click", function () {
+      var on = S.wd.indexOf(i) >= 0;
+      S.wd = on ? S.wd.filter(function (x) { return x !== i; }) : S.wd.concat([i]);
+      b.setAttribute("aria-pressed", String(!on));
+      $("sample").hidden = true; save(); calcRead();
+    });
+    wds.appendChild(b);
+  });
+  $("hol").setAttribute("aria-pressed", String(S.hol));
+  $("hol").addEventListener("click", function () {
+    S.hol = !S.hol; $("hol").setAttribute("aria-pressed", String(S.hol)); save(); calcRead();
+  });
+  document.querySelectorAll("#modes .chip").forEach(function (b) {
+    b.addEventListener("click", function () { setMode(b.dataset.mode); $("sample").hidden = true; save(); calcAd(); });
+  });
+  document.querySelectorAll("#units .chip").forEach(function (b) {
+    b.addEventListener("click", function () { setUnit(b.dataset.unit); save(); calcRead(); });
+  });
+  $("addBtn").addEventListener("click", function () {
+    var v = $("addDate").value;
+    if (valueToDate(v) && S.restDates.indexOf(v) < 0) { S.restDates.push(v); save(); renderRestList(); calcRead(); }
+    $("addDate").value = "";
+  });
+
+  /* ---- タブ ---- */
+  function showTab(t) {
+    S.tab = t;
+    var rate = t === "rate";
+    $("pane-rate").style.display = rate ? "grid" : "none";
+    $("pane-read").style.display = rate ? "none" : "grid";
+    $("pane-rate").hidden = !rate; $("pane-read").hidden = rate;
+    $("tab-rate").setAttribute("aria-selected", String(rate));
+    $("tab-read").setAttribute("aria-selected", String(!rate));
+    $("ttl").textContent = rate ? "利率" : "読書日数";
+    save();
+  }
+  $("tab-rate").addEventListener("click", function () { showTab("rate"); window.scrollTo(0, 0); });
+  $("tab-read").addEventListener("click", function () { showTab("read"); window.scrollTo(0, 0); });
+
+  setUnit(S.unit);
+  setMode(S.mode);
+  renderRestList();
+  calcDeposit(); calcAd(); calcRead();
+  showTab(S.tab === "read" ? "read" : "rate");
+})();
+</script>
+
+<script>
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", function () {
+    navigator.serviceWorker.register("sw.js").catch(function () {});
+  });
+}
+</script>
+</body>
+</html>
