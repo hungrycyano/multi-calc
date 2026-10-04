@@ -160,6 +160,36 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); min-hei
 details[open] summary { margin-bottom: 8px; }
 .note { margin: 0; font-size: 13px; color: var(--muted); }
 
+/* Shopping ranking */
+.rank { list-style: none; margin: 0; padding: 0; display: grid; }
+.rk {
+  display: grid; grid-template-columns: auto minmax(0, 1fr) auto; gap: 12px; align-items: center;
+  padding-block: 12px; border-top: 1px dashed color-mix(in srgb, var(--accent-soft-ink) 35%, transparent);
+}
+.rk:first-child { border-top: 0; padding-top: 4px; }
+.rk .no {
+  width: 30px; height: 30px; border-radius: 50%; display: grid; place-items: center;
+  font-family: var(--font-num); font-weight: 600; font-size: 15px; border: 1.5px solid var(--accent-soft-ink);
+}
+.rk.best .no { background: var(--accent-soft-ink); color: var(--accent-soft); }
+.rk .nm { min-width: 0; font-weight: 700; font-size: 17px; line-height: 1.35; overflow-wrap: anywhere; }
+.rk .nm small { display: block; font-size: 13px; font-weight: 500; opacity: .85; }
+.rk .tag {
+  display: inline-block; margin-left: 8px; padding: 0 8px; border-radius: 999px; font-size: 12px; font-weight: 700;
+  background: var(--accent-soft-ink); color: var(--accent-soft); vertical-align: 2px;
+}
+.rk .pr { text-align: right; font-family: var(--font-num); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.rk .pr b { font-size: 24px; font-weight: 500; }
+.rk.best .pr b { font-size: 32px; }
+.rk .pr small { display: block; font-family: var(--font-body); font-size: 13px; opacity: .85; }
+.pn { margin: 0; font-size: 14px; }
+.pn:empty { display: none; }
+.items { display: grid; gap: 16px; }
+.item { display: grid; gap: 12px; min-width: 0; }
+.item + .item { border-top: 1px solid var(--line); padding-top: 16px; }
+.item h3 { margin: 0; font-size: 14px; font-weight: 700; color: var(--muted); }
+.inp input.txt { font-family: var(--font-body); font-size: 18px; }
+
 /* Calendar */
 .cal { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 18px; }
 .month { min-width: 0; }
@@ -186,7 +216,7 @@ details[open] summary { margin-bottom: 8px; }
 /* Tab bar */
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   background: var(--surface); border-top: 1px solid var(--line);
 }
@@ -332,11 +362,67 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
       <div id="cal" class="cal"></div>
     </section>
   </div>
+
+  <!-- ============ 買物単価 ============ -->
+  <div id="pane-shop" role="tabpanel" aria-labelledby="tab-shop" hidden style="gap:36px">
+    <section class="calc" style="display:grid" aria-live="polite">
+      <div class="panel">
+        <div class="lab" id="shop-lab">安い順</div>
+        <ol class="rank" id="rank"></ol>
+        <p class="pn" id="shop-hint"></p>
+      </div>
+      <div class="card">
+        <div class="row2">
+          <div class="field"><span class="lbl" id="su-lbl">数える単位</span>
+            <div class="chips" id="shopUnits" role="group" aria-labelledby="su-lbl">
+              <button type="button" class="chip" data-u="g" aria-pressed="true">g</button>
+              <button type="button" class="chip" data-u="ml" aria-pressed="false">ml</button>
+              <button type="button" class="chip" data-u="個" aria-pressed="false">個</button>
+            </div></div>
+          <div class="field"><span class="lbl" id="dm1-lbl">割引の書き方</span>
+            <div class="chips dm" role="group" aria-labelledby="dm1-lbl">
+              <button type="button" class="chip" data-m="pct" aria-pressed="true">％引き</button>
+              <button type="button" class="chip" data-m="wari" aria-pressed="false">割引</button>
+            </div></div>
+        </div>
+        <div class="items" id="shopItems"></div>
+        <div class="chips"><button type="button" class="chip" id="addThird">3つ目も比べる</button></div>
+      </div>
+    </section>
+
+    <section class="calc" style="display:grid" aria-live="polite">
+      <h2>割引の計算</h2>
+      <div class="panel">
+        <div class="lab">割引後の金額</div>
+        <div class="big" id="o-dafter">—</div>
+        <dl class="rows">
+          <div><dt>割引額</dt><dd id="o-doff">—</dd></div>
+          <div><dt>割引率</dt><dd id="o-dpct">—</dd></div>
+        </dl>
+      </div>
+      <div class="card">
+        <div class="field"><span class="lbl" id="dm2-lbl">割引の書き方</span>
+          <div class="chips dm" role="group" aria-labelledby="dm2-lbl">
+            <button type="button" class="chip" data-m="pct" aria-pressed="true">％引き</button>
+            <button type="button" class="chip" data-m="wari" aria-pressed="false">割引</button>
+          </div></div>
+        <div class="row2">
+          <div class="field"><label for="dp">原価（値段）</label>
+            <div class="inp"><input id="dp" type="text" inputmode="decimal" autocomplete="off"><span class="unit">円</span></div></div>
+          <div class="field"><label for="dd">割引</label>
+            <div class="inp"><input id="dd" type="text" inputmode="decimal" autocomplete="off"><span class="unit u-dsc"></span></div></div>
+        </div>
+        <div class="field"><span class="lbl">よく使う割引</span><div class="chips" id="dquick"></div></div>
+        <p class="note">割引後の金額の端数は切り捨てです。「2割引」は「20％引き」と同じです。上の比べる欄の「割引」に入れた数字も、同じ書き方で計算します。</p>
+      </div>
+    </section>
+  </div>
 </div>
 
 <nav class="tabs" role="tablist" aria-label="電卓の切り替え">
   <button type="button" role="tab" id="tab-rate" aria-selected="true" aria-controls="pane-rate">利率</button>
   <button type="button" role="tab" id="tab-read" aria-selected="false" aria-controls="pane-read">読書日数</button>
+  <button type="button" role="tab" id="tab-shop" aria-selected="false" aria-controls="pane-shop">買物単価</button>
 </nav>
 
 <script>
@@ -370,6 +456,26 @@ function annualize(pct, months) {
     simple: pct * 12 / months,
     compound: (Math.pow(1 + pct / 100, 12 / months) - 1) * 100
   };
+}
+function applyDiscount(price, d, mode) {
+  if (!(price >= 0) || !(d >= 0)) return null;
+  var pct = mode === "wari" ? d * 10 : d;
+  if (pct >= 100) return null;
+  var after = Math.floor(price * (100 - pct) / 100 + 1e-7);
+  return { pct: pct, after: after, off: price - after };
+}
+function rankUnitPrices(items) {
+  var out = [];
+  items.forEach(function (it, i) {
+    if (it.qty > 0 && it.price > 0) out.push({ idx: i, name: it.name, qty: it.qty, price: it.price, orig: it.orig, dtext: it.dtext, unit: it.price / it.qty });
+  });
+  out.sort(function (a, b) { return (a.unit - b.unit) || (a.idx - b.idx); });
+  var best = out.length ? out[0].unit : 0;
+  out.forEach(function (r) {
+    r.best = Math.abs(r.unit - best) <= best * 1e-9;
+    r.over = best > 0 ? (r.unit / best - 1) * 100 : 0;
+  });
+  return out;
 }
 function ymd(d) { return d.getFullYear() * 10000 + (d.getMonth() + 1) * 100 + d.getDate(); }
 var _holCache = {};
@@ -444,7 +550,9 @@ function valueToDate(v) {
     tab: "rate", p: "1,000,000", r: "0.5", m: "12", tax: "20.315",
     ap: "1,000,000", am: "3", ar: "0.8", mode: "annual",
     unit: "ページ", total: "300", per: "12", start: dateToValue(today),
-    wd: [0, 6], hol: false, restDates: []
+    wd: [0, 6], hol: false, restDates: [],
+    shop: { unit: "g", third: false, items: [{ n: "", q: "500", p: "298", d: "" }, { n: "", q: "380", p: "238", d: "" }, { n: "", q: "", p: "", d: "" }] },
+    disc: { mode: "pct", p: "1,980", d: "20" }
   }, saved || {});
   if (saved) $("sample").hidden = true;
 
@@ -621,26 +729,159 @@ function valueToDate(v) {
     $("addDate").value = "";
   });
 
+  /* ---- 買物単価 ---- */
+  var SHOP_NAMES = ["商品A", "商品B", "商品C"];
+  function el(tag, cls, text) {
+    var e = document.createElement(tag);
+    if (cls) e.className = cls;
+    if (text != null) e.textContent = text;
+    return e;
+  }
+  function fmtUnit(v) {
+    var d = v >= 100 ? 1 : v >= 1 ? 2 : 3;
+    return v.toLocaleString("ja-JP", { maximumFractionDigits: d });
+  }
+  function fmtQty(v) { return (Math.round(v * 100) / 100).toLocaleString("ja-JP"); }
+  function setShopUnit(u) {
+    S.shop.unit = u;
+    document.querySelectorAll("#shopUnits .chip").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.u === u)); });
+    document.querySelectorAll(".u-shop").forEach(function (e) { e.textContent = u; });
+  }
+  function applyThird() {
+    $("item-2").hidden = !S.shop.third;
+    $("addThird").textContent = S.shop.third ? "3つ目をはずす" : "3つ目も比べる";
+  }
+  function calcShop() {
+    var u = S.shop.unit, n = S.shop.third ? 3 : 2, items = [];
+    for (var i = 0; i < n; i++) {
+      var it = S.shop.items[i], price = parseNum(it.p), dd = parseNum(it.d);
+      var dr = dd > 0 ? applyDiscount(price, dd, S.disc.mode) : null;
+      items.push({
+        name: it.n.trim() || SHOP_NAMES[i], qty: parseNum(it.q), price: dr ? dr.after : price, orig: price,
+        dtext: dr ? parseFloat(dd.toFixed(2)) + (S.disc.mode === "wari" ? "割引" : "％引き") : ""
+      });
+    }
+    var rows = rankUnitPrices(items);
+    $("shop-lab").textContent = "安い順（" + (u === "個" ? "1個" : "1" + u) + "あたり）";
+    var ol = $("rank");
+    ol.innerHTML = "";
+    rows.forEach(function (r, k) {
+      var li = el("li", "rk" + (r.best ? " best" : ""));
+      li.appendChild(el("span", "no", String(r.best ? 1 : k + 1)));
+      var nm = el("span", "nm", r.name);
+      if (r.best) nm.appendChild(el("span", "tag", "最安"));
+      nm.appendChild(el("small", null, fmtQty(r.qty) + u + "　" + (r.dtext ? fmtQty(r.orig) + "円→" + fmtQty(r.price) + "円（" + r.dtext + "）" : fmtQty(r.price) + "円")));
+      if (!r.best) nm.appendChild(el("small", null, r.over < 0.05 ? "最安とほぼ同じ" : "最安より＋" + (Math.round(r.over * 10) / 10) + "％高い"));
+      li.appendChild(nm);
+      var pr = el("span", "pr");
+      pr.appendChild(el("b", null, fmtUnit(r.unit)));
+      pr.appendChild(document.createTextNode("円/" + u));
+      if (u !== "個") pr.appendChild(el("small", null, "100" + u + "あたり " + fmtUnit(r.unit * 100) + "円"));
+      li.appendChild(pr);
+      ol.appendChild(li);
+    });
+    $("shop-hint").textContent = rows.length === 0 ? "量と値段を入れると、安い順に並びます。" : rows.length === 1 ? "もう1つ入れると、比べられます。" : "";
+  }
+  var shopBox = $("shopItems");
+  SHOP_NAMES.forEach(function (nm, i) {
+    var d = el("div", "item");
+    d.id = "item-" + i;
+    d.innerHTML =
+      "<h3>" + nm + "</h3>" +
+      '<div class="field"><label for="s' + i + '-n">商品名（なくても大丈夫です）</label><div class="inp"><input class="txt" id="s' + i + '-n" type="text" placeholder="' + nm + '" autocomplete="off" enterkeyhint="done"></div></div>' +
+      '<div class="row2">' +
+      '<div class="field"><label for="s' + i + '-q">量</label><div class="inp"><input id="s' + i + '-q" type="text" inputmode="decimal" autocomplete="off"><span class="unit u-shop"></span></div></div>' +
+      '<div class="field"><label for="s' + i + '-p">値段</label><div class="inp"><input id="s' + i + '-p" type="text" inputmode="decimal" autocomplete="off"><span class="unit">円</span></div></div>' +
+      "</div>" +
+      '<div class="field"><label for="s' + i + '-d">割引（なくても大丈夫です）</label><div class="inp"><input id="s' + i + '-d" type="text" inputmode="decimal" autocomplete="off" placeholder="なし"><span class="unit u-dsc"></span></div></div>';
+    shopBox.appendChild(d);
+    ["n", "q", "p", "d"].forEach(function (k) {
+      var inp = $("s" + i + "-" + k);
+      inp.value = k === "n" ? S.shop.items[i].n : k === "d" ? (S.shop.items[i].d || "") : formatMoney(S.shop.items[i][k]);
+      inp.addEventListener("input", function (ev) {
+        if (k !== "n" && k !== "d" && !ev.isComposing) fmtMoneyField(inp);
+        S.shop.items[i][k] = inp.value; $("sample").hidden = true; save(); calcShop();
+      });
+    });
+  });
+  document.querySelectorAll("#shopUnits .chip").forEach(function (b) {
+    b.addEventListener("click", function () { setShopUnit(b.dataset.u); $("sample").hidden = true; save(); calcShop(); });
+  });
+  $("addThird").addEventListener("click", function () {
+    S.shop.third = !S.shop.third; applyThird(); $("sample").hidden = true; save(); calcShop();
+  });
+
+  /* ---- 割引 ---- */
+  function renderQuick() {
+    var box = $("dquick"), wari = S.disc.mode === "wari";
+    box.innerHTML = "";
+    (wari ? [1, 2, 3, 5] : [5, 10, 20, 30, 50]).forEach(function (v) {
+      var b = el("button", "chip", v + (wari ? "割" : "％"));
+      b.type = "button";
+      b.addEventListener("click", function () {
+        $("dd").value = String(v); S.disc.d = String(v); $("sample").hidden = true; save(); calcDisc();
+      });
+      box.appendChild(b);
+    });
+  }
+  function setDmode(m) {
+    S.disc.mode = m === "wari" ? "wari" : "pct";
+    document.querySelectorAll(".dm .chip").forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.m === S.disc.mode)); });
+    document.querySelectorAll(".u-dsc").forEach(function (e) { e.textContent = S.disc.mode === "wari" ? "割引" : "％引き"; });
+    renderQuick();
+  }
+  function calcDisc() {
+    var r = applyDiscount(parseNum($("dp").value), parseNum($("dd").value), S.disc.mode);
+    if (!r) { ["o-dafter", "o-doff", "o-dpct"].forEach(function (i) { $(i).textContent = "—"; }); return; }
+    $("o-dafter").textContent = yen(r.after);
+    $("o-doff").textContent = "−" + yen(r.off);
+    $("o-dpct").textContent = parseFloat(r.pct.toFixed(2)) + "％引き（" + parseFloat((r.pct / 10).toFixed(2)) + "割引）";
+  }
+  function convertDiscValues(toWari) {
+    function conv(v) { var n = parseNum(v); return n >= 0 ? String(parseFloat((toWari ? n / 10 : n * 10).toFixed(2))) : v; }
+    S.disc.d = conv(S.disc.d);
+    $("dd").value = S.disc.d;
+    S.shop.items.forEach(function (it, i) { it.d = it.d ? conv(it.d) : ""; $("s" + i + "-d").value = it.d; });
+  }
+  $("dp").value = formatMoney(S.disc.p);
+  $("dd").value = S.disc.d;
+  $("dp").addEventListener("input", function (ev) {
+    if (!ev.isComposing) fmtMoneyField($("dp"));
+    S.disc.p = $("dp").value; $("sample").hidden = true; save(); calcDisc();
+  });
+  $("dd").addEventListener("input", function () { S.disc.d = $("dd").value; $("sample").hidden = true; save(); calcDisc(); });
+  document.querySelectorAll(".dm .chip").forEach(function (b) {
+    b.addEventListener("click", function () {
+      var m = b.dataset.m;
+      if (m === S.disc.mode) return;
+      convertDiscValues(m === "wari"); setDmode(m); $("sample").hidden = true; save(); calcShop(); calcDisc();
+    });
+  });
+
   /* ---- タブ ---- */
+  var TITLES = { rate: "利率", read: "読書日数", shop: "買物単価" };
   function showTab(t) {
+    if (!TITLES[t]) t = "rate";
     S.tab = t;
-    var rate = t === "rate";
-    $("pane-rate").style.display = rate ? "grid" : "none";
-    $("pane-read").style.display = rate ? "none" : "grid";
-    $("pane-rate").hidden = !rate; $("pane-read").hidden = rate;
-    $("tab-rate").setAttribute("aria-selected", String(rate));
-    $("tab-read").setAttribute("aria-selected", String(!rate));
-    $("ttl").textContent = rate ? "利率" : "読書日数";
+    Object.keys(TITLES).forEach(function (k) {
+      var on = k === t;
+      $("pane-" + k).style.display = on ? "grid" : "none";
+      $("pane-" + k).hidden = !on;
+      $("tab-" + k).setAttribute("aria-selected", String(on));
+    });
+    $("ttl").textContent = TITLES[t];
     save();
   }
-  $("tab-rate").addEventListener("click", function () { showTab("rate"); window.scrollTo(0, 0); });
-  $("tab-read").addEventListener("click", function () { showTab("read"); window.scrollTo(0, 0); });
+  Object.keys(TITLES).forEach(function (k) {
+    $("tab-" + k).addEventListener("click", function () { showTab(k); window.scrollTo(0, 0); });
+  });
 
   setUnit(S.unit);
   setMode(S.mode);
   renderRestList();
-  calcDeposit(); calcAd(); calcRead();
-  showTab(S.tab === "read" ? "read" : "rate");
+  setShopUnit(S.shop.unit); applyThird(); setDmode(S.disc.mode);
+  calcDeposit(); calcAd(); calcRead(); calcShop(); calcDisc();
+  showTab(S.tab);
 })();
 </script>
 
