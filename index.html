@@ -366,11 +366,6 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
   <!-- ============ 買物単価 ============ -->
   <div id="pane-shop" role="tabpanel" aria-labelledby="tab-shop" hidden style="gap:36px">
     <section class="calc" style="display:grid" aria-live="polite">
-      <div class="panel">
-        <div class="lab" id="shop-lab">安い順</div>
-        <ol class="rank" id="rank"></ol>
-        <p class="pn" id="shop-hint"></p>
-      </div>
       <div class="card">
         <div class="row2">
           <div class="field"><span class="lbl" id="su-lbl">数える単位</span>
@@ -388,18 +383,15 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
         <div class="items" id="shopItems"></div>
         <div class="chips"><button type="button" class="chip" id="addThird">3つ目も比べる</button></div>
       </div>
+      <div class="panel">
+        <div class="lab" id="shop-lab">安い順</div>
+        <ol class="rank" id="rank"></ol>
+        <p class="pn" id="shop-hint"></p>
+      </div>
     </section>
 
     <section class="calc" style="display:grid" aria-live="polite">
       <h2>割引の計算</h2>
-      <div class="panel">
-        <div class="lab">割引後の金額</div>
-        <div class="big" id="o-dafter">—</div>
-        <dl class="rows">
-          <div><dt>割引額</dt><dd id="o-doff">—</dd></div>
-          <div><dt>割引率</dt><dd id="o-dpct">—</dd></div>
-        </dl>
-      </div>
       <div class="card">
         <div class="field"><span class="lbl" id="dm2-lbl">割引の書き方</span>
           <div class="chips dm" role="group" aria-labelledby="dm2-lbl">
@@ -414,6 +406,14 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
         </div>
         <div class="field"><span class="lbl">よく使う割引</span><div class="chips" id="dquick"></div></div>
         <p class="note">割引後の金額の端数は切り捨てです。「2割引」は「20％引き」と同じです。上の比べる欄の「割引」に入れた数字も、同じ書き方で計算します。</p>
+      </div>
+      <div class="panel">
+        <div class="lab">割引後の金額</div>
+        <div class="big" id="o-dafter">—</div>
+        <dl class="rows">
+          <div><dt>割引額</dt><dd id="o-doff">—</dd></div>
+          <div><dt>割引率</dt><dd id="o-dpct">—</dd></div>
+        </dl>
       </div>
     </section>
   </div>
