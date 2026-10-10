@@ -160,6 +160,41 @@ details summary { cursor: pointer; font-size: 14px; color: var(--muted); min-hei
 details[open] summary { margin-bottom: 8px; }
 .note { margin: 0; font-size: 13px; color: var(--muted); }
 
+/* Calculator */
+body[data-tab="calc"] header, body[data-tab="calc"] #sample { display: none; }
+.cdisp { gap: 4px; }
+.cexpr { min-height: 1.5em; text-align: right; font-family: var(--font-num); font-size: 15px; font-variant-numeric: tabular-nums; opacity: .85; overflow-wrap: anywhere; }
+.panel.cdisp .big { text-align: right; min-height: 1.2em; }
+.panel.cdisp .big.l1 { font-size: 32px; }
+.panel.cdisp .big.l2 { font-size: 26px; }
+.panel.cdisp .big.l3 { font-size: 21px; }
+.cdisp dl.rows { margin-top: 6px; }
+.cdisp dl.rows > div { border-radius: 6px; padding-inline: 4px; margin-inline: -4px; }
+.cdisp dl.rows > div.flash { background: color-mix(in srgb, var(--accent-soft-ink) 20%, transparent); }
+.keys { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.key {
+  font: inherit; font-family: var(--font-num); font-size: 24px; font-weight: 500;
+  height: clamp(46px, 8.4vh, 60px); height: clamp(46px, 8.4dvh, 60px);
+  border-radius: 12px; border: 1.5px solid var(--line); background: var(--field); color: var(--ink);
+  cursor: pointer; touch-action: manipulation; -webkit-tap-highlight-color: transparent;
+  -webkit-user-select: none; user-select: none; padding: 0;
+}
+.key:active { filter: brightness(.93); transform: scale(.97); }
+.key.mem { font-size: 15px; font-weight: 600; letter-spacing: .04em; color: var(--accent); }
+.key.mem.arm { color: var(--warn); border-color: var(--warn); }
+.key.fn { background: var(--surface); color: var(--muted); font-size: 19px; }
+.key.op { background: var(--accent-soft); color: var(--accent-soft-ink); border-color: transparent; font-size: 28px; }
+.key.op[aria-pressed="true"] { background: var(--accent-soft-ink); color: var(--accent-soft); }
+.key.eq { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); font-size: 28px; }
+.mlist { list-style: none; margin: 0; padding: 0; display: grid; }
+.mrow { display: grid; grid-template-columns: 2em minmax(0, 1fr) 44px; align-items: center; gap: 8px; min-height: 48px; border-top: 1px solid var(--line); }
+.mrow:first-child { border-top: 0; }
+.mi { color: var(--muted); font-family: var(--font-num); font-size: 14px; }
+.mv { font-family: var(--font-num); font-size: 20px; font-variant-numeric: tabular-nums; text-align: right; overflow-wrap: anywhere; }
+.mdel { width: 44px; height: 44px; border: 0; background: transparent; color: var(--muted); font-size: 22px; border-radius: 10px; cursor: pointer; }
+.mtotal { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; border-top: 2px solid var(--ink); padding-top: 10px; padding-right: 52px; font-weight: 700; }
+.mtotal b { font-family: var(--font-num); font-size: 24px; font-weight: 500; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+
 /* Shopping ranking */
 .rank { list-style: none; margin: 0; padding: 0; display: grid; }
 .rk {
@@ -216,12 +251,12 @@ details[open] summary { margin-bottom: 8px; }
 /* Tab bar */
 .tabs {
   position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
-  display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px;
+  display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px;
   padding: 10px 16px calc(10px + env(safe-area-inset-bottom, 0px));
   background: var(--surface); border-top: 1px solid var(--line);
 }
 .tabs button {
-  font: inherit; font-size: 17px; font-weight: 700; min-height: 52px;
+  font: inherit; font-size: 15px; font-weight: 700; min-height: 52px; padding-inline: 0;
   border-radius: 12px; border: 1.5px solid transparent; background: transparent; color: var(--muted); cursor: pointer;
 }
 .tabs button[aria-selected="true"] { background: var(--accent-soft); color: var(--accent-soft-ink); border-color: var(--accent); }
@@ -238,6 +273,56 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
     <h1 id="ttl">利率</h1>
     <p class="hint" id="sample">入力欄には例の数字が入っています。書き換えて使えます。</p>
   </header>
+
+  <!-- ============ 電卓 ============ -->
+  <div id="pane-calc" role="tabpanel" aria-labelledby="tab-calc" hidden style="gap:28px">
+    <section class="calc">
+      <div class="panel cdisp">
+        <div class="cexpr" id="c-expr"></div>
+        <div class="big" id="c-val" aria-live="polite">0</div>
+        <dl class="rows">
+          <div id="c-mrow"><dt>M+の合計</dt><dd id="c-mtot">なし</dd></div>
+        </dl>
+      </div>
+      <div class="keys" id="keys">
+        <button type="button" class="key mem" data-k="MC" id="k-mc" aria-label="メモを全部消す">MC</button>
+        <button type="button" class="key mem" data-k="MR" aria-label="メモの合計を呼び出す">MR</button>
+        <button type="button" class="key mem" data-k="M+" aria-label="表示の数字をメモに足す">M+</button>
+        <button type="button" class="key mem" data-k="M-" aria-label="表示の数字をメモから引く">M&minus;</button>
+        <button type="button" class="key fn" data-k="AC" aria-label="全部消す">AC</button>
+        <button type="button" class="key fn" data-k="BS" aria-label="1文字消す">&larr;</button>
+        <button type="button" class="key fn" data-k="%" aria-label="パーセント">%</button>
+        <button type="button" class="key op" data-k="&divide;" data-op="&divide;" aria-label="割る">&divide;</button>
+        <button type="button" class="key" data-k="7">7</button>
+        <button type="button" class="key" data-k="8">8</button>
+        <button type="button" class="key" data-k="9">9</button>
+        <button type="button" class="key op" data-k="&times;" data-op="&times;" aria-label="かける">&times;</button>
+        <button type="button" class="key" data-k="4">4</button>
+        <button type="button" class="key" data-k="5">5</button>
+        <button type="button" class="key" data-k="6">6</button>
+        <button type="button" class="key op" data-k="&minus;" data-op="&minus;" aria-label="引く">&minus;</button>
+        <button type="button" class="key" data-k="1">1</button>
+        <button type="button" class="key" data-k="2">2</button>
+        <button type="button" class="key" data-k="3">3</button>
+        <button type="button" class="key op" data-k="+" data-op="+" aria-label="足す">+</button>
+        <button type="button" class="key" data-k="0">0</button>
+        <button type="button" class="key" data-k="00">00</button>
+        <button type="button" class="key" data-k="." aria-label="小数点">.</button>
+        <button type="button" class="key eq" data-k="=" aria-label="答えを出す">=</button>
+      </div>
+    </section>
+    <section class="calc">
+      <h2>M+の記録</h2>
+      <div class="card">
+        <p class="note" id="memEmpty">M+を押すと、ここに金額が貯まります。間違えたときは、1行ずつ消せます。</p>
+        <div id="memBody" hidden style="display:grid;gap:16px">
+          <ol class="mlist" id="memList"></ol>
+          <div class="mtotal"><span>合計</span><b id="memTotal">0</b></div>
+          <div class="chips"><button type="button" class="chip" id="memClear">すべて消す</button></div>
+        </div>
+      </div>
+    </section>
+  </div>
 
   <!-- ============ 利率 ============ -->
   <div id="pane-rate" role="tabpanel" aria-labelledby="tab-rate" style="display:grid;gap:36px">
@@ -420,6 +505,7 @@ button:focus-visible, summary:focus-visible { outline: 3px solid var(--accent); 
 </div>
 
 <nav class="tabs" role="tablist" aria-label="電卓の切り替え">
+  <button type="button" role="tab" id="tab-calc" aria-selected="false" aria-controls="pane-calc">電卓</button>
   <button type="button" role="tab" id="tab-rate" aria-selected="true" aria-controls="pane-rate">利率</button>
   <button type="button" role="tab" id="tab-read" aria-selected="false" aria-controls="pane-read">読書日数</button>
   <button type="button" role="tab" id="tab-shop" aria-selected="false" aria-controls="pane-shop">買物単価</button>
@@ -456,6 +542,30 @@ function annualize(pct, months) {
     simple: pct * 12 / months,
     compound: (Math.pow(1 + pct / 100, 12 / months) - 1) * 100
   };
+}
+function numStr(x) {
+  x = parseFloat(Number(x).toPrecision(15));
+  var s = String(x);
+  if (/e/i.test(s)) s = x.toFixed(10).replace(/0+$/, "").replace(/\.$/, "");
+  return s;
+}
+function fmtNum(s) {
+  s = String(s);
+  var neg = s.charAt(0) === "-";
+  if (neg) s = s.slice(1);
+  var p = s.split(".");
+  var i = p[0].replace(/\B(?=(\d{3})+(?!\d))/g, ",");
+  return (neg ? "−" : "") + i + (p.length > 1 ? "." + p[1] : "");
+}
+function calcApply(a, op, b) {
+  var r;
+  if (op === "+") r = a + b;
+  else if (op === "−") r = a - b;
+  else if (op === "×") r = a * b;
+  else if (op === "÷") { if (b === 0) return null; r = a / b; }
+  else return null;
+  r = parseFloat(r.toPrecision(15));
+  return isFinite(r) && Math.abs(r) < 1e15 ? r : null;
 }
 function applyDiscount(price, d, mode) {
   if (!(price >= 0) || !(d >= 0)) return null;
@@ -547,7 +657,9 @@ function valueToDate(v) {
   var today = new Date();
   var saved = load();
   var S = Object.assign({
-    tab: "rate", p: "1,000,000", r: "0.5", m: "12", tax: "20.315",
+    tab: "calc", mem: [],
+    calc: { cur: "0", acc: null, op: null, fresh: true, entered: false, justEq: false, expr: "", err: false },
+    p: "1,000,000", r: "0.5", m: "12", tax: "20.315",
     ap: "1,000,000", am: "3", ar: "0.8", mode: "annual",
     unit: "ページ", total: "300", per: "12", start: dateToValue(today),
     wd: [0, 6], hol: false, restDates: [],
@@ -858,11 +970,197 @@ function valueToDate(v) {
     });
   });
 
+  /* ---- 電卓 ---- */
+  var PLUS = "+", MINUS = "−", TIMES = "×", DIV = "÷";
+  if (!Array.isArray(S.mem)) S.mem = [];
+  S.mem = S.mem.filter(function (v) { return typeof v === "number" && isFinite(v); });
+  var C = S.calc;
+  function cReset() { C.cur = "0"; C.acc = null; C.op = null; C.fresh = true; C.entered = false; C.justEq = false; C.expr = ""; C.err = false; }
+  if (!C || typeof C.cur !== "string" || !/^-?\d+\.?\d*$/.test(C.cur)) { C = S.calc = {}; cReset(); }
+  if (C.op !== null && ([PLUS, MINUS, TIMES, DIV].indexOf(C.op) < 0 || typeof C.acc !== "number")) cReset();
+  C.err = false;
+  var memArmed = false, memTimer = null, flashTimer = null;
+
+  function show(x) { return fmtNum(numStr(x)); }
+  function digitsOf(s) { return s.replace(/[^0-9]/g, "").length; }
+  function memTotal() { var t = 0; S.mem.forEach(function (v) { t = parseFloat((t + v).toPrecision(15)); }); return t; }
+  function cErr() { cReset(); C.err = true; }
+
+  function renderCalc() {
+    var v = C.err ? "エラー" : fmtNum(C.cur), n = v.length, big = $("c-val");
+    big.textContent = v;
+    big.className = "big" + (n > 14 ? " l3" : n > 11 ? " l2" : n > 8 ? " l1" : "");
+    $("c-expr").textContent = C.expr;
+    document.querySelectorAll("#keys [data-op]").forEach(function (b) {
+      b.setAttribute("aria-pressed", String(C.op === b.dataset.op && !C.entered));
+    });
+    save();
+  }
+  function setArmLabels(on) {
+    $("k-mc").textContent = on ? "消す?" : "MC";
+    $("k-mc").classList.toggle("arm", on);
+    $("memClear").textContent = on ? "もう一度押すと全部消えます" : "すべて消す";
+  }
+  function renderMem(flash) {
+    var n = S.mem.length, t = memTotal(), ol = $("memList");
+    $("c-mtot").textContent = n ? show(t) + "（" + n + "点）" : "なし";
+    $("memTotal").textContent = show(t);
+    $("memEmpty").hidden = n > 0;
+    $("memBody").hidden = n === 0;
+    if (n === 0 && memArmed) { memArmed = false; clearTimeout(memTimer); setArmLabels(false); }
+    ol.innerHTML = "";
+    S.mem.forEach(function (v, i) {
+      var li = el("li", "mrow");
+      li.appendChild(el("span", "mi", String(i + 1)));
+      li.appendChild(el("span", "mv", (v >= 0 ? "+" : "") + show(v)));
+      var b = el("button", "mdel", "×");
+      b.type = "button";
+      b.setAttribute("aria-label", (i + 1) + "番目を消す");
+      b.addEventListener("click", function () { S.mem.splice(i, 1); renderMem(); save(); });
+      li.appendChild(b);
+      ol.appendChild(li);
+    });
+    if (flash) {
+      var r = $("c-mrow");
+      r.classList.add("flash");
+      clearTimeout(flashTimer);
+      flashTimer = setTimeout(function () { r.classList.remove("flash"); }, 700);
+    }
+  }
+
+  function cDigit(d) {
+    if (C.err) cReset();
+    if (C.fresh) {
+      C.cur = d === "00" ? "0" : d; C.fresh = false; C.entered = true;
+      if (!C.op) { C.expr = ""; C.justEq = false; }
+    } else if (C.cur === "0") {
+      C.cur = d === "00" ? "0" : d;
+    } else if (digitsOf(C.cur) + d.length <= 12) {
+      C.cur += d;
+    }
+    renderCalc();
+  }
+  function cDot() {
+    if (C.err) cReset();
+    if (C.fresh) {
+      C.cur = "0."; C.fresh = false; C.entered = true;
+      if (!C.op) { C.expr = ""; C.justEq = false; }
+    } else if (C.cur.indexOf(".") < 0 && digitsOf(C.cur) < 12) {
+      C.cur += ".";
+    }
+    renderCalc();
+  }
+  function cBack() {
+    if (C.err) { cReset(); renderCalc(); return; }
+    if (C.fresh) return;
+    C.cur = C.cur.slice(0, -1);
+    if (C.cur === "" || C.cur === "-") C.cur = "0";
+    renderCalc();
+  }
+  function cOp(sym) {
+    if (C.err) return;
+    if (C.op && !C.entered) {
+      C.op = sym;
+    } else {
+      if (C.op && C.entered) {
+        var r = calcApply(C.acc, C.op, parseFloat(C.cur));
+        if (r === null) { cErr(); renderCalc(); return; }
+        C.acc = r; C.cur = numStr(r);
+      } else {
+        C.acc = parseFloat(C.cur);
+      }
+      C.op = sym; C.fresh = true; C.entered = false; C.justEq = false;
+    }
+    C.expr = show(C.acc) + " " + sym;
+    renderCalc();
+  }
+  function cEq() {
+    if (C.err || !C.op) return;
+    var b = parseFloat(C.cur), r = calcApply(C.acc, C.op, b);
+    if (r === null) { cErr(); renderCalc(); return; }
+    C.expr = show(C.acc) + " " + C.op + " " + show(b) + " =";
+    C.cur = numStr(r); C.acc = null; C.op = null; C.fresh = true; C.entered = false; C.justEq = true;
+    renderCalc();
+  }
+  function cPct() {
+    if (C.err) return;
+    var b = parseFloat(C.cur), pv = (C.op === PLUS || C.op === MINUS) && C.acc !== null ? C.acc * b / 100 : b / 100;
+    C.cur = numStr(pv); C.fresh = true; C.entered = true;
+    renderCalc();
+  }
+  function cMem(sign) {
+    if (C.err) return;
+    if (C.op && C.entered) { cEq(); if (C.err) return; }
+    var v = parseFloat(C.cur);
+    if (!v) return;
+    S.mem.push(parseFloat((sign * v).toPrecision(15)));
+    C.fresh = true;
+    renderMem(true);
+    renderCalc();
+  }
+  function cMR() {
+    if (!S.mem.length) return;
+    if (C.err) cReset();
+    C.cur = numStr(memTotal()); C.fresh = true; C.entered = true;
+    if (!C.op) { C.justEq = false; C.expr = "メモの合計"; }
+    renderCalc();
+  }
+  function cMC() {
+    if (!S.mem.length) return;
+    if (!memArmed) {
+      memArmed = true; setArmLabels(true);
+      clearTimeout(memTimer);
+      memTimer = setTimeout(function () { memArmed = false; setArmLabels(false); }, 3000);
+    } else {
+      clearTimeout(memTimer); memArmed = false; S.mem = [];
+      setArmLabels(false); renderMem(); save();
+    }
+  }
+
+  $("keys").addEventListener("click", function (e) {
+    var b = e.target.closest("button[data-k]");
+    if (!b) return;
+    var k = b.dataset.k;
+    if (/^\d+$/.test(k)) cDigit(k);
+    else if (k === ".") cDot();
+    else if (k === "AC") { cReset(); renderCalc(); }
+    else if (k === "BS") cBack();
+    else if (k === "%") cPct();
+    else if (k === "=") cEq();
+    else if (k === "MC") cMC();
+    else if (k === "MR") cMR();
+    else if (k === "M+") cMem(1);
+    else if (k === "M-") cMem(-1);
+    else cOp(k);
+    b.blur();
+  });
+  $("memClear").addEventListener("click", cMC);
+  document.addEventListener("keydown", function (e) {
+    if (S.tab !== "calc" || e.ctrlKey || e.metaKey || e.altKey) return;
+    var t = e.target, tag = t && t.tagName;
+    if (tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT") return;
+    var k = e.key, used = true;
+    if (/^[0-9]$/.test(k)) cDigit(k);
+    else if (k === ".") cDot();
+    else if (k === "+") cOp(PLUS);
+    else if (k === "-") cOp(MINUS);
+    else if (k === "*" || k === "x" || k === "X") cOp(TIMES);
+    else if (k === "/") cOp(DIV);
+    else if (k === "%") cPct();
+    else if (k === "=" || (k === "Enter" && tag !== "BUTTON")) cEq();
+    else if (k === "Backspace") cBack();
+    else if (k === "Escape" || k === "Delete") { cReset(); renderCalc(); }
+    else used = false;
+    if (used) e.preventDefault();
+  });
+  renderMem(); renderCalc();
+
   /* ---- タブ ---- */
-  var TITLES = { rate: "利率", read: "読書日数", shop: "買物単価" };
+  var TITLES = { calc: "電卓", rate: "利率", read: "読書日数", shop: "買物単価" };
   function showTab(t) {
-    if (!TITLES[t]) t = "rate";
+    if (!TITLES[t]) t = "calc";
     S.tab = t;
+    document.body.dataset.tab = t;
     Object.keys(TITLES).forEach(function (k) {
       var on = k === t;
       $("pane-" + k).style.display = on ? "grid" : "none";
